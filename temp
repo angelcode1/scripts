@@ -1,14 +1,5 @@
 #!/bin/sh
 
-# faultmanager-autoroot
-# by throwaway96
-# https://github.com/throwaway96/faultmanager-autoroot
-# Copyright 2024-2025. Licensed under AGPL v3 or later. No warranties.
-
-# Thanks to:
-# - buglloc (Andrew Krasichkov) for discovering the vulnerability
-#   (https://ut.buglloc.com/webos-jailbreak/)
-
 set -e
 
 SCRIPT_DIR="${SCRIPT_DIR:-$(dirname -- "${0}")}"
