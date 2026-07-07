@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         YouTube Shorts Remover (Desktop, CSS)
 // @namespace    yt-shorts-desktop-css
-// @version      1.0.0
-// @description  Fast, flicker-free removal of YouTube Shorts on desktop via pure CSS injection — no per-frame DOM scanning, no framework churn.
+// @version      1.2.0
+// @description  Fast, flicker-free removal of YouTube Shorts on desktop via CSS injection
 // @match        https://www.youtube.com/*
 // @run-at       document-start
 // @noframes
@@ -12,18 +12,12 @@
   'use strict';
 
   const CSS = `
-ytd-guide-entry-renderer:has(a[href^="/shorts"]),
-ytd-mini-guide-entry-renderer:has(a[href^="/shorts"]),
+:is(ytd-guide-entry-renderer, ytd-mini-guide-entry-renderer):has(a[href^="/shorts"]),
 
-ytd-rich-item-renderer:has(a[href^="/shorts"]),
-ytd-video-renderer:has(a[href^="/shorts"]),
-ytd-grid-video-renderer:has(a[href^="/shorts"]),
-ytd-compact-video-renderer:has(a[href^="/shorts"]),
-ytd-rich-item-renderer:has([overlay-style="SHORTS"]),
-ytd-video-renderer:has([overlay-style="SHORTS"]),
-ytd-grid-video-renderer:has([overlay-style="SHORTS"]),
+:is(ytd-rich-item-renderer, ytd-video-renderer, ytd-grid-video-renderer,
+    ytd-compact-video-renderer, yt-lockup-view-model):has(a[href^="/shorts"], [overlay-style="SHORTS"]),
 
-ytd-notification-renderer:has(a[href^="/shorts"]),
+ytd-notification-renderer:has(a[href^="/shorts"], a[href*="youtube.com/shorts"]),
 
 ytd-reel-shelf-renderer,
 ytd-rich-shelf-renderer[is-shorts],
@@ -35,9 +29,11 @@ ytd-secondary-search-container-renderer:has(a[href^="/shorts"]) {
   display: none !important;
 }
 
-ytd-rich-grid-row,
-#contents.ytd-rich-grid-row {
-  display: contents !important;
+@supports selector(:has(a)) {
+  ytd-rich-grid-row,
+  #contents.ytd-rich-grid-row {
+    display: contents !important;
+  }
 }
 `;
 
@@ -53,4 +49,11 @@ ytd-rich-grid-row,
 
   inject();
   document.addEventListener('DOMContentLoaded', inject, { once: true });
+
+  const toWatch = () => {
+    const m = location.pathname.match(/^\/shorts\/([\w-]{5,})/);
+    if (m) location.replace(`/watch?v=${m[1]}`);
+  };
+  toWatch();
+  window.addEventListener('yt-navigate-start', toWatch, true);
 })();
