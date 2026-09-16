@@ -1,11 +1,10 @@
 // ==UserScript==
 // @name         Block YouTube Shorts (Mobile)
 // @namespace    https://greasyfork.org/
-// @version      1.0
-// @description  Hides Shorts shelves, tabs, and feed items on m/www.youtube.com. Redirects /shorts/ URLs to the regular /watch player.
+// @version      1.1.0
+// @description  Hides Shorts shelves, tabs, and feed items on m.youtube.com. Redirects /shorts/ URLs to the regular /watch player. (Desktop www.youtube.com is handled by the separate desktop script.)
 // @author       You
 // @match        *://m.youtube.com/*
-// @match        *://www.youtube.com/*
 // @grant        none
 // @inject-into  content
 // @run-at       document-start
@@ -17,29 +16,42 @@
   const STYLE_ID = 'yt-no-shorts-css';
   const CSS = `
 ytm-reel-shelf-renderer,
-ytm-rich-section-renderer:has(ytm-reel-shelf-renderer),
 ytm-shorts-lockup-view-model,
 ytm-shorts-lockup-view-model-v2,
 ytm-reel-item-renderer,
 ytm-reel-player-overlay-renderer,
+ytm-rich-section-renderer:has(
+  ytm-reel-shelf-renderer,
+  ytm-shorts-lockup-view-model,
+  ytm-shorts-lockup-view-model-v2
+),
+grid-shelf-view-model:has(
+  a[href^="/shorts"],
+  ytm-shorts-lockup-view-model,
+  ytm-shorts-lockup-view-model-v2
+),
 ytm-pivot-bar-item-renderer[tab-identifier="FEshorts"],
-ytm-pivot-bar-item-renderer:has(a[href^="/shorts"]),
+ytm-pivot-bar-item-renderer:has(a[href^="/shorts"], .pivot-shorts),
+yt-tab-shape[tab-title="Shorts"],
 ytm-chip-cloud-chip-renderer:has([aria-label="Shorts"]),
 ytm-rich-item-renderer:has(a[href^="/shorts"]),
 ytm-video-with-context-renderer:has(a[href^="/shorts"]),
 ytm-compact-video-renderer:has(a[href^="/shorts"]),
-ytd-reel-shelf-renderer,
-ytd-rich-shelf-renderer[is-shorts],
-ytd-rich-section-renderer:has(ytd-rich-shelf-renderer[is-shorts]),
-ytd-rich-item-renderer:has(a[href^="/shorts"]),
-ytd-video-renderer:has(a[href^="/shorts"]),
-ytd-compact-video-renderer:has(a[href^="/shorts"]),
-ytd-guide-entry-renderer:has(a[title="Shorts"]),
-ytd-mini-guide-entry-renderer:has(a[title="Shorts"]),
-yt-chip-cloud-chip-renderer:has(yt-formatted-string[title="Shorts"]),
 a[href^="/shorts"] {
   display: none !important;
 }`;
+
+  let styleEl = null;
+
+  function injectCSS() {
+    if (styleEl && styleEl.isConnected) return;
+    if (!styleEl) {
+      styleEl = document.createElement('style');
+      styleEl.id = STYLE_ID;
+      styleEl.textContent = CSS;
+    }
+    (document.head || document.documentElement).appendChild(styleEl);
+  }
 
   let lastPath = null;
 
@@ -49,14 +61,6 @@ a[href^="/shorts"] {
     lastPath = path;
     const m = path.match(/^\/shorts\/([\w-]+)/);
     if (m) location.replace('/watch?v=' + m[1]);
-  }
-
-  function injectCSS() {
-    if (document.getElementById(STYLE_ID)) return;
-    const style = document.createElement('style');
-    style.id = STYLE_ID;
-    style.textContent = CSS;
-    (document.head || document.documentElement).appendChild(style);
   }
 
   let scheduled = false;

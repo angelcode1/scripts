@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         YouTube Keyword Filter
 // @namespace    https://greasyfork.org/
-// @version      2.0.0
+// @version      2.1.0
 // @description  Hide YouTube videos, channels and playlists by keywords.
 // @author       You
 // @match        https://www.youtube.com/*
@@ -36,8 +36,9 @@
 
   const esc = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const isAscii = s => /^[\x00-\x7F]+$/.test(s);
-  const bounded = BLOCKED.filter(isAscii).map(esc);
-  const substrs = BLOCKED.filter(k => !isAscii(k)).map(esc);
+  const norm = BLOCKED.map(k => k.normalize('NFC')); // match form of normalized page text
+  const bounded = norm.filter(isAscii).map(esc);
+  const substrs = norm.filter(k => !isAscii(k)).map(esc);
   const parts = [];
   if (bounded.length) parts.push(`\\b(?:${bounded.join('|')})\\b`);
   if (substrs.length) parts.push(`(?:${substrs.join('|')})`);
@@ -56,7 +57,6 @@ ytd-rich-grid-row,
     style.textContent = CSS;
     (document.head || document.documentElement).appendChild(style);
   };
-  injectStyle();
 
   const ITEMS = [
     'ytd-rich-item-renderer',
@@ -80,10 +80,12 @@ ytd-rich-grid-row,
     return `${title} ${byline} ${label}`.replace(/\s+/g, ' ').trim();
   };
 
+  const seen = new WeakMap(); // item element -> last evaluated text
+
   const evaluate = el => {
     const text = textOf(el);
-    if (el.dataset.kfText === text) return;
-    el.dataset.kfText = text;
+    if (seen.get(el) === text) return;
+    seen.set(el, text);
     el.classList.toggle('kf-hidden', text !== '' && PATTERN.test(text.normalize('NFC')));
   };
 
@@ -91,25 +93,49 @@ ytd-rich-grid-row,
     for (const el of document.querySelectorAll(ITEMS)) evaluate(el);
   };
 
+  // Targeted processing: only evaluate items whose subtree actually mutated,
+  // instead of rescanning the whole document on every mutation frame.
+  const pending = new Set();
   let queued = false;
+  const flush = () => {
+    queued = false;
+    for (const el of pending) {
+      if (el.isConnected) evaluate(el);
+    }
+    pending.clear();
+  };
   const schedule = () => {
     if (queued) return;
     queued = true;
-    requestAnimationFrame(() => {
-      queued = false;
-      scan();
-    });
+    requestAnimationFrame(flush);
   };
 
-  const start = () => {
-    injectStyle(); // re-assert in case of early document-start race
-    scan();
-    new MutationObserver(schedule).observe(document.body, {
-      childList: true,
-      subtree: true,
-    });
+  const ownerItem = node => {
+    const el = node.nodeType === 1 ? node : node.parentElement;
+    return el ? el.closest(ITEMS) : null;
   };
 
-  if (document.body) start();
-  else document.addEventListener('DOMContentLoaded', start, { once: true });
+  const onMutations = records => {
+    for (const r of records) {
+      const host = ownerItem(r.target);
+      if (host) pending.add(host);
+      if (r.type !== 'childList') continue;
+      for (const n of r.addedNodes) {
+        if (n.nodeType !== 1) continue;
+        if (n.matches(ITEMS)) pending.add(n);
+        else for (const el of n.querySelectorAll(ITEMS)) pending.add(el);
+      }
+    }
+    if (pending.size) schedule();
+  };
+
+  injectStyle();
+  scan();
+  new MutationObserver(onMutations).observe(document.documentElement, {
+    childList: true,
+    subtree: true,
+    characterData: true, // title text swapped in-place during DOM recycling
+  });
+  document.addEventListener('DOMContentLoaded', injectStyle, { once: true });
+  window.addEventListener('yt-navigate-finish', scan); // belt-and-braces per SPA navigation
 })();

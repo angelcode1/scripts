@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         YouTube Shorts Remover (Desktop, CSS)
 // @namespace    yt-shorts-desktop-css
-// @version      1.3.0
-// @description  Fast, flicker-free removal of YouTube Shorts on desktop via CSS injection, plus a /shorts → /watch redirect and a trimmed Explore guide menu (Music, News, Learning only). Requires :has() (Chrome/Edge 105+, Firefox 121+, Safari 15.4+); hiding degrades to a no-op on older engines.
+// @version      1.4.0
+// @description  Fast, flicker-free removal of YouTube Shorts on desktop via CSS injection, plus a /shorts → /watch redirect and a trimmed Explore guide menu (Music, News, Learning only). Requires :has() (Chrome/Edge 105+, Firefox 121+, Safari 15.4+).
 // @match        https://www.youtube.com/*
 // @run-at       document-start
 // @noframes
@@ -26,25 +26,33 @@
 ),
 
 :is(ytd-rich-item-renderer, ytd-video-renderer, ytd-grid-video-renderer,
-    ytd-compact-video-renderer, yt-lockup-view-model):has(a[href^="/shorts"], [overlay-style="SHORTS"]),
+    ytd-compact-video-renderer, yt-lockup-view-model):has(
+  a[href^="/shorts"], [overlay-style="SHORTS"],
+  ytm-shorts-lockup-view-model, ytm-shorts-lockup-view-model-v2
+),
 
 ytd-notification-renderer:has(a[href^="/shorts"], a[href*="youtube.com/shorts"]),
 
 ytd-reel-shelf-renderer,
+ytm-shorts-lockup-view-model,
+ytm-shorts-lockup-view-model-v2,
 ytd-rich-shelf-renderer[is-shorts],
 ytd-rich-section-renderer:has(ytd-rich-shelf-renderer[is-shorts]),
 ytd-rich-section-renderer:has(a[href^="/shorts"]),
-grid-shelf-view-model:has(a[href^="/shorts"]),
+grid-shelf-view-model:has(
+  a[href^="/shorts"],
+  ytm-shorts-lockup-view-model, ytm-shorts-lockup-view-model-v2
+),
+
+yt-tab-shape[tab-title="Shorts"],
 
 ytd-secondary-search-container-renderer:has(a[href^="/shorts"]) {
   display: none !important;
 }
 
-@supports selector(:has(a)) {
-  ytd-rich-grid-row,
-  #contents.ytd-rich-grid-row {
-    display: contents !important;
-  }
+ytd-rich-grid-row,
+#contents.ytd-rich-grid-row {
+  display: contents !important;
 }
 `;
 
